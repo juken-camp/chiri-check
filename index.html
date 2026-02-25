@@ -1,0 +1,1515 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>地理チェック</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;600;700&family=Shippori+Mincho:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #eef4f0;
+            --surface: #f4f8f5;
+            --surface2: #ffffff;
+            --primary: #1a4a3a;
+            --primary-light: #2d6b55;
+            --primary-muted: rgba(26,74,58,0.08);
+            --accent: #2e7d60;
+            --accent-light: #4aab88;
+            --accent2: #c4973a;
+            --accent2-light: #e8be6a;
+            --danger: #c0392b;
+            --danger-light: #e74c3c;
+            --success: #1a6b45;
+            --success-light: #27ae60;
+            --text: #1c1a17;
+            --text-muted: #5a6b62;
+            --text-light: #8ea398;
+            --border: rgba(26,74,58,0.15);
+            --shadow: 0 2px 16px rgba(26,74,58,0.12);
+            --shadow-lg: 0 8px 32px rgba(26,74,58,0.18);
+            --radius: 12px;
+            --radius-lg: 18px;
+            --font-serif: 'Shippori Mincho', 'Noto Serif JP', serif;
+            --font-body: 'Noto Serif JP', 'Hiragino Mincho ProN', serif;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-body);
+            background: var(--bg);
+            background-image:
+                radial-gradient(ellipse at 15% 15%, rgba(46,125,96,0.07) 0%, transparent 55%),
+                radial-gradient(ellipse at 85% 85%, rgba(26,74,58,0.08) 0%, transparent 50%);
+            min-height: 100vh;
+            overflow-x: hidden;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            color: var(--text);
+        }
+
+        .container {
+            width: 100%;
+            max-width: 420px;
+            margin: 0 auto;
+            padding: 10px 14px;
+            min-height: 100vh;
+            padding-bottom: 120px;
+        }
+
+        /* Loading screen */
+        .loading-screen {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: var(--bg);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.3s ease;
+        }
+
+        .loading-content { text-align: center; }
+
+        .loading-spinner {
+            font-size: 40px;
+            animation: loadingSpin 2s ease-in-out infinite;
+            margin-bottom: 20px;
+        }
+
+        .loading-text {
+            font-family: var(--font-serif);
+            font-size: 18px;
+            color: var(--primary);
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            line-height: 1.6;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            padding: 18px 0 12px;
+        }
+
+        .title {
+            font-family: var(--font-serif);
+            font-size: 26px;
+            font-weight: 700;
+            color: var(--primary);
+            letter-spacing: 0.12em;
+            margin-bottom: 4px;
+            position: relative;
+            display: inline-block;
+        }
+
+        .title::before {
+            content: '◆';
+            font-size: 10px;
+            color: var(--accent2);
+            display: inline-block;
+            margin-right: 8px;
+            vertical-align: middle;
+            opacity: 0.7;
+        }
+
+        .title::after {
+            content: '';
+            display: block;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent2), transparent);
+            margin-top: 4px;
+        }
+
+        .subtitle {
+            font-size: 12px;
+            color: var(--text-muted);
+            letter-spacing: 0.06em;
+            font-weight: 600;
+        }
+
+        /* Floating buttons */
+        .floating-menu {
+            position: fixed;
+            top: 16px; right: 16px;
+            z-index: 1000;
+            background: var(--primary);
+            border-radius: 50%;
+            width: 44px; height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--shadow);
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.25s ease;
+            border: 2px solid rgba(255,255,255,0.15);
+        }
+
+        .floating-menu:hover {
+            transform: scale(1.08);
+            background: var(--primary-light);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .floating-back {
+            position: fixed;
+            top: 16px; left: 16px;
+            z-index: 1000;
+            background: var(--surface2);
+            border: 2px solid var(--border);
+            border-radius: 50%;
+            width: 44px; height: 44px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--shadow);
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.25s ease;
+            color: var(--primary);
+        }
+
+        .floating-back:hover {
+            transform: scale(1.08);
+            background: var(--primary-muted);
+            border-color: var(--primary);
+        }
+
+        .menu-screen { display: block; }
+        .subcategory-screen { display: none; }
+        .game-screen { display: none; }
+        .result-screen { display: none; }
+
+        /* Category section */
+        .category-section { margin-bottom: 20px; }
+
+        .category-header {
+            background: var(--primary);
+            color: #f4f8f5;
+            padding: 11px 18px;
+            border-radius: var(--radius);
+            text-align: center;
+            margin-bottom: 12px;
+            font-weight: 700;
+            font-size: 14px;
+            letter-spacing: 0.08em;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            box-shadow: 0 3px 12px rgba(26,74,58,0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .category-header::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(196,151,58,0.6), transparent);
+        }
+
+        .category-header:hover {
+            background: var(--primary-light);
+            transform: translateY(-1px);
+            box-shadow: 0 5px 18px rgba(26,74,58,0.28);
+        }
+
+        /* Theme grid */
+        .theme-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 7px;
+            margin-bottom: 16px;
+        }
+
+        .theme-card {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 8px 4px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 1px 6px rgba(26,74,58,0.07);
+            position: relative;
+            overflow: hidden;
+            min-height: 64px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .theme-card:hover {
+            transform: translateY(-2px) scale(1.04);
+            box-shadow: 0 6px 20px rgba(26,74,58,0.15);
+            border-color: var(--accent2);
+            background: #fafff8;
+        }
+
+        .theme-emoji {
+            font-size: 17px;
+            margin-bottom: 3px;
+        }
+
+        .theme-title {
+            font-size: 9px;
+            font-weight: 700;
+            color: var(--primary);
+            line-height: 1.2;
+            letter-spacing: 0.02em;
+        }
+
+        /* Game board */
+        .game-board { padding: 16px 0; }
+
+        .score-board {
+            background: var(--surface2);
+            border-radius: var(--radius);
+            padding: 14px 16px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+        }
+
+        .score {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--primary);
+            letter-spacing: 0.05em;
+        }
+
+        .cards-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 9px;
+            margin-top: 16px;
+        }
+
+        .card-column {
+            display: flex;
+            flex-direction: column;
+            gap: 9px;
+        }
+
+        .card {
+            background: var(--surface2);
+            border-radius: var(--radius);
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+            box-shadow: 0 2px 8px rgba(26,74,58,0.09);
+            border: 2px solid var(--border);
+            height: 65px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--primary), var(--accent2));
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .card:hover {
+            transform: scale(1.03);
+            box-shadow: 0 5px 18px rgba(26,74,58,0.18);
+            border-color: var(--primary);
+        }
+
+        .card:hover::before { opacity: 1; }
+
+        .card.selected {
+            border-color: var(--accent2);
+            background: rgba(196,151,58,0.06);
+            transform: scale(1.04);
+            animation: pulse 1.2s infinite;
+        }
+
+        .card.selected::before {
+            opacity: 1;
+            background: linear-gradient(90deg, var(--accent2), var(--accent2-light));
+        }
+
+        .card.matched {
+            background: rgba(26,107,69,0.07);
+            border-color: var(--success-light);
+            animation: superMatch 1.2s ease;
+        }
+
+        .card.matched::before {
+            opacity: 1;
+            background: linear-gradient(90deg, var(--success), var(--success-light));
+        }
+
+        .card.wrong { animation: wrongMatch 0.8s ease; }
+
+        .card-text {
+            font-weight: 700;
+            color: var(--text);
+            line-height: 1.3;
+            z-index: 2;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            width: 100%;
+            letter-spacing: 0.02em;
+        }
+
+        .card[data-type="term"] .card-text { font-size: 13px; }
+        .card[data-type="description"] .card-text { font-size: 10px; line-height: 1.2; }
+
+        /* Result screen */
+        .result-content {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .result-emoji {
+            font-size: 52px;
+            margin-bottom: 20px;
+            animation: celebration 2s infinite;
+        }
+
+        .result-title {
+            font-family: var(--font-serif);
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 10px;
+            letter-spacing: 0.1em;
+        }
+
+        .result-score {
+            font-size: 15px;
+            color: var(--text-muted);
+            margin-bottom: 28px;
+            line-height: 1.7;
+            white-space: pre-line;
+        }
+
+        .btn {
+            background: var(--primary);
+            color: #f4f8f5;
+            border: none;
+            border-radius: 30px;
+            padding: 13px 28px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            box-shadow: 0 3px 14px rgba(26,74,58,0.3);
+            margin: 8px;
+            letter-spacing: 0.06em;
+            font-family: var(--font-body);
+        }
+
+        .btn:hover {
+            background: var(--primary-light);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(26,74,58,0.35);
+        }
+
+        .progress-bar {
+            background: rgba(26,74,58,0.1);
+            height: 6px;
+            border-radius: 3px;
+            margin: 12px 0 2px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            background: linear-gradient(90deg, var(--primary), var(--accent2));
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.5s ease;
+            width: 0%;
+        }
+
+        .error-message {
+            background: rgba(192,57,43,0.06);
+            border: 1px solid rgba(192,57,43,0.3);
+            border-radius: var(--radius);
+            padding: 20px;
+            margin: 20px;
+            text-align: center;
+            color: var(--danger);
+        }
+
+        /* Effects */
+        .screen-shake { animation: screenShake 0.5s ease-in-out; }
+
+        .firework {
+            position: fixed;
+            width: 8px; height: 8px;
+            background: radial-gradient(circle, var(--accent2-light), var(--primary));
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        .confetti {
+            position: fixed;
+            width: 7px; height: 7px;
+            pointer-events: none;
+            z-index: 9999;
+            border-radius: 2px;
+        }
+
+        .spark {
+            position: fixed;
+            width: 4px; height: 4px;
+            background: radial-gradient(circle, var(--accent2-light), var(--accent2));
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9998;
+        }
+
+        /* Animations */
+        @keyframes loadingSpin {
+            0% { transform: rotate(0deg) scale(1); }
+            25% { transform: rotate(90deg) scale(1.1); }
+            50% { transform: rotate(180deg) scale(1); }
+            75% { transform: rotate(270deg) scale(1.1); }
+            100% { transform: rotate(360deg) scale(1); }
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0) scale(1); }
+            10% { transform: translateY(-4px) scale(1.04); }
+            40% { transform: translateY(-6px) scale(1.06); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(16px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(196,151,58,0.6); }
+            70% { box-shadow: 0 0 0 8px rgba(196,151,58,0); }
+            100% { box-shadow: 0 0 0 0 rgba(196,151,58,0); }
+        }
+
+        @keyframes superMatch {
+            0% { transform: scale(1); }
+            20% { transform: scale(1.28) rotate(-3deg); }
+            40% { transform: scale(0.92) rotate(3deg); }
+            60% { transform: scale(1.15) rotate(-2deg); }
+            80% { transform: scale(0.97) rotate(1deg); }
+            100% { transform: scale(1.04) rotate(0deg); }
+        }
+
+        @keyframes wrongMatch {
+            0%, 100% { transform: translateX(0) rotate(0deg); }
+            10% { transform: translateX(-8px) rotate(-4deg); background: rgba(231,76,60,0.1); }
+            20% { transform: translateX(8px) rotate(4deg); background: rgba(231,76,60,0.15); }
+            30% { transform: translateX(-6px) rotate(-2deg); }
+            40% { transform: translateX(6px) rotate(2deg); }
+            50% { transform: translateX(-4px); }
+            60% { transform: translateX(4px); }
+        }
+
+        @keyframes celebration {
+            0%, 100% { transform: scale(1) rotate(0deg); }
+            25% { transform: scale(1.15) rotate(-8deg); }
+            50% { transform: scale(1.22) rotate(0deg); }
+            75% { transform: scale(1.15) rotate(8deg); }
+        }
+
+        @keyframes screenShake {
+            0%, 100% { transform: translate(0, 0); }
+            10% { transform: translate(-2px, -1px); }
+            20% { transform: translate(2px, 1px); }
+            30% { transform: translate(-2px, 1px); }
+            40% { transform: translate(2px, -1px); }
+            50% { transform: translate(-2px, 1px); }
+            60% { transform: translate(2px, -1px); }
+            70% { transform: translate(-1px, -2px); }
+            80% { transform: translate(1px, 2px); }
+            90% { transform: translate(-1px, 1px); }
+        }
+
+        @media (max-width: 380px) {
+            .container { padding-bottom: 140px; }
+            .theme-grid { grid-template-columns: repeat(3, 1fr); }
+            .theme-card { min-height: 58px; padding: 6px 3px; }
+            .theme-emoji { font-size: 15px; }
+            .theme-title { font-size: 8px; }
+            .cards-container { gap: 7px; }
+            .card { padding: 8px; height: 55px; }
+            .card[data-type="term"] .card-text { font-size: 12px; }
+            .card[data-type="description"] .card-text { font-size: 9px; }
+            .floating-back, .floating-menu { width: 40px; height: 40px; font-size: 16px; }
+            .title { font-size: 22px; }
+        }
+
+        @media (max-width: 768px) {
+            body { position: fixed; overflow: hidden; width: 100%; height: 100%; }
+            .container {
+                position: absolute; top: 0; left: 50%;
+                transform: translateX(-50%);
+                width: 100%; max-width: 420px;
+                height: 100vh; overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+                padding: 10px 14px; padding-bottom: 120px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- ローディング画面 -->
+    <div class="loading-screen" id="loadingScreen">
+        <div class="loading-content">
+            <div class="loading-spinner">🌍</div>
+            <div class="loading-text">地理チェック<br><span style="font-size:13px; font-weight:400; opacity:0.7;">読み込み中...</span></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- フローティングメニューボタン -->
+        <div class="floating-menu" onclick="playUltimateClickSound(); showMenu();">🏠</div>
+        
+        <!-- フローティング戻るボタン -->
+        <div class="floating-back" id="floatingBack" onclick="playUltimateClickSound(); goBack();">◀︎</div>
+
+        <!-- メニュー画面 -->
+        <div class="menu-screen" id="menuScreen">
+            <div class="header">
+                <div class="title">地理チェック</div>
+                <div class="subtitle">用語マッチングゲーム</div>
+            </div>
+            
+            <div id="menuContainer">
+                <!-- 動的に生成される -->
+            </div>
+        </div>
+
+        <!-- サブカテゴリ選択画面 -->
+        <div class="subcategory-screen" id="subcategoryScreen">
+            <div class="header">
+                <div class="title">地理チェック</div>
+                <div class="subtitle" id="subcategoryTitle"></div>
+            </div>
+            
+            <div class="theme-grid" id="subcategoryGrid">
+                <!-- 動的に生成される -->
+            </div>
+        </div>
+
+        <!-- ゲーム画面 -->
+        <div class="game-screen" id="gameScreen">
+            <div class="header">
+                <div class="title">地理チェック</div>
+                <div class="subtitle" id="currentTheme"></div>
+            </div>
+
+            <div class="score-board">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div class="score">✓ <span id="score">0</span> 問正解</div>
+                    <div style="font-size:12px; color:var(--text-muted);">全 <span id="total">0</span> 問</div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+            </div>
+
+            <div class="game-board">
+                <div class="cards-container">
+                    <div class="card-column" id="leftColumn"></div>
+                    <div class="card-column" id="rightColumn"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 結果画面 -->
+        <div class="result-screen" id="resultScreen">
+            <div class="result-content">
+                <div class="result-emoji">🌍</div>
+                <div class="result-title">おめでとう！</div>
+                <div class="result-score" id="finalScore"></div>
+                <button class="btn" onclick="playUltimateClickSound(); showMenu();">メニューに戻る</button>
+                <button class="btn" onclick="playUltimateClickSound(); restartGame();">もう一度</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 外部データファイルの読み込み -->
+    <script src="geography-learning-system.js"></script>
+    
+    <script>
+        // 🎵 === 究極の音響システム === 🎵
+        let audioContext = null;
+        let comboCount = 0;
+        let clickSequence = 0;
+
+        function initAudio() {
+            try {
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioContext.state === 'suspended') {
+                    audioContext.resume();
+                }
+            } catch (e) {
+                console.log('Audio not supported');
+            }
+        }
+
+        // 🎼 基本音響関数
+        function playTone(frequency, duration, type = 'sine', volume = 0.3) {
+            try {
+                initAudio();
+                if (!audioContext) return;
+
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+                oscillator.type = type;
+                
+                gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + duration);
+            } catch (e) {
+                console.log('Audio playback failed:', e);
+            }
+        }
+
+        // 🌟 究極のクリック音 - 脳汁ドバドバ仕様
+        function playUltimateClickSound() {
+            clickSequence = (clickSequence % 5) + 1;
+            
+            const sequences = {
+                1: [{ freq: 523.25, duration: 0.08, type: 'triangle' }, { freq: 659.25, duration: 0.08, delay: 0.05 }],
+                2: [{ freq: 587.33, duration: 0.08, type: 'triangle' }, { freq: 739.99, duration: 0.08, delay: 0.05 }],
+                3: [{ freq: 659.25, duration: 0.08, type: 'triangle' }, { freq: 830.61, duration: 0.08, delay: 0.05 }],
+                4: [{ freq: 698.46, duration: 0.08, type: 'triangle' }, { freq: 880.00, duration: 0.08, delay: 0.05 }],
+                5: [{ freq: 783.99, duration: 0.12, type: 'triangle' }, { freq: 987.77, duration: 0.12, delay: 0.06 }]
+            };
+
+            sequences[clickSequence].forEach(note => {
+                setTimeout(() => {
+                    playTone(note.freq, note.duration, note.type, 0.4);
+                }, (note.delay || 0) * 1000);
+            });
+
+            // キラキラエフェクト
+            createClickSparks();
+        }
+
+        // ✨ クリック時のスパークエフェクト
+        function createClickSparks() {
+            for (let i = 0; i < 5; i++) {
+                const spark = document.createElement('div');
+                spark.className = 'spark';
+                spark.style.left = (Math.random() * window.innerWidth) + 'px';
+                spark.style.top = (Math.random() * window.innerHeight) + 'px';
+                spark.style.animation = `sparkle 0.8s ease-out ${i * 0.1}s`;
+                document.body.appendChild(spark);
+
+                setTimeout(() => {
+                    if (spark.parentNode) {
+                        spark.parentNode.removeChild(spark);
+                    }
+                }, 1000);
+            }
+        }
+
+        // 🎊 超強化された正解音
+        function playUltimateSuccessSound() {
+            comboCount++;
+            const baseFreqs = [523.25, 659.25, 783.99, 1046.5];
+            const comboMultiplier = Math.min(comboCount * 0.2, 2);
+
+            baseFreqs.forEach((freq, idx) => {
+                setTimeout(() => {
+                    playTone(freq * (1 + comboMultiplier * 0.1), 0.3, 'triangle', 0.5);
+                    playTone(freq * 1.5, 0.2, 'sine', 0.3); // ハーモニー
+                }, idx * 150);
+            });
+
+            // コンボボーナス音
+            if (comboCount > 1) {
+                setTimeout(() => {
+                    for (let i = 0; i < comboCount && i < 5; i++) {
+                        setTimeout(() => {
+                            playTone(1318.5 + (i * 100), 0.1, 'square', 0.4);
+                        }, i * 80);
+                    }
+                }, 600);
+            }
+
+            // 画面震動
+            if (comboCount >= 3) {
+                document.body.classList.add('screen-shake');
+                setTimeout(() => {
+                    document.body.classList.remove('screen-shake');
+                }, 500);
+            }
+        }
+
+        // 💥 劇的な間違い音
+        function playUltimateWrongSound() {
+            comboCount = 0;
+            
+            // ドラマチックな下降音階
+            const wrongNotes = [400, 350, 300, 250, 200];
+            wrongNotes.forEach((freq, idx) => {
+                setTimeout(() => {
+                    playTone(freq, 0.2 + (idx * 0.05), 'sawtooth', 0.4);
+                }, idx * 100);
+            });
+
+            // 余韻のうなり音
+            setTimeout(() => {
+                playTone(150, 0.4, 'triangle', 0.3);
+            }, 500);
+        }
+
+        // 🏆 究極の勝利音楽
+        function playUltimateVictorySound() {
+            // メインメロディー
+            const victoryMelody = [
+                { freq: 523.25, duration: 0.3, delay: 0 },
+                { freq: 659.25, duration: 0.3, delay: 0.3 },
+                { freq: 783.99, duration: 0.3, delay: 0.6 },
+                { freq: 1046.5, duration: 0.6, delay: 0.9 },
+                { freq: 783.99, duration: 0.3, delay: 1.5 },
+                { freq: 1046.5, duration: 0.3, delay: 1.8 },
+                { freq: 1318.5, duration: 0.8, delay: 2.1 }
+            ];
+
+            victoryMelody.forEach(note => {
+                setTimeout(() => {
+                    playTone(note.freq, note.duration, 'triangle', 0.5);
+                    playTone(note.freq * 1.5, note.duration * 0.7, 'sine', 0.3); // ハーモニー
+                }, note.delay * 1000);
+            });
+
+            // ベース音
+            const bassNotes = [130.81, 164.81, 196.00, 261.63];
+            bassNotes.forEach((freq, idx) => {
+                setTimeout(() => {
+                    playTone(freq, 0.4, 'square', 0.4);
+                }, idx * 700);
+            });
+
+            // 装飾音
+            setTimeout(() => {
+                for (let i = 0; i < 20; i++) {
+                    setTimeout(() => {
+                        playTone(1000 + (Math.random() * 1000), 0.1, 'sine', 0.2);
+                    }, i * 50);
+                }
+            }, 1000);
+        }
+
+        // 🎆 超強化エフェクト関数
+        function createUltimateFirework(x, y) {
+            const colors = ['#c4973a', '#1a4a3a', '#e8be6a', '#2d6b55', '#4aab88', '#8ea398'];
+            
+            for (let i = 0; i < 15; i++) {
+                const firework = document.createElement('div');
+                firework.className = 'firework';
+                firework.style.left = x + 'px';
+                firework.style.top = y + 'px';
+                firework.style.background = colors[Math.floor(Math.random() * colors.length)];
+                firework.style.animation = `ultimateFirework 1.5s ease-out ${i * 0.05}s`;
+                document.body.appendChild(firework);
+
+                setTimeout(() => {
+                    if (firework.parentNode) {
+                        firework.parentNode.removeChild(firework);
+                    }
+                }, 1500 + i * 50);
+            }
+
+            // 追加のスパークエフェクト
+            for (let i = 0; i < 10; i++) {
+                const spark = document.createElement('div');
+                spark.className = 'spark';
+                spark.style.left = (x + (Math.random() - 0.5) * 100) + 'px';
+                spark.style.top = (y + (Math.random() - 0.5) * 100) + 'px';
+                spark.style.animation = `sparkle 1s ease-out ${i * 0.1}s`;
+                document.body.appendChild(spark);
+
+                setTimeout(() => {
+                    if (spark.parentNode) {
+                        spark.parentNode.removeChild(spark);
+                    }
+                }, 1000 + i * 100);
+            }
+        }
+
+        function createUltimateConfetti() {
+            const colors = ['#c4973a', '#1a4a3a', '#e8be6a', '#2d6b55', '#f4f8f5', '#4aab88', '#8ea398', '#2e7d60'];
+            
+            for (let i = 0; i < 100; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.left = Math.random() * window.innerWidth + 'px';
+                confetti.style.top = '-10px';
+                confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.animation = `ultimateConfetti ${3 + Math.random() * 2}s linear`;
+                confetti.style.width = (6 + Math.random() * 8) + 'px';
+                confetti.style.height = (6 + Math.random() * 8) + 'px';
+                confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+                document.body.appendChild(confetti);
+
+                setTimeout(() => {
+                    if (confetti.parentNode) {
+                        confetti.parentNode.removeChild(confetti);
+                    }
+                }, 5000);
+            }
+        }
+
+        // 追加のアニメーション
+        const additionalStyles = `
+            @keyframes ultimateFirework {
+                0% { transform: translate3d(0, 0, 0) scale(0) rotate(0deg); opacity: 1; }
+                20% { transform: translate3d(${Math.random() * 200 - 100}px, ${Math.random() * 200 - 100}px, 0) scale(1.5) rotate(180deg); opacity: 0.9; }
+                40% { transform: translate3d(${Math.random() * 300 - 150}px, ${Math.random() * 300 - 150}px, 0) scale(2) rotate(360deg); opacity: 0.7; }
+                60% { transform: translate3d(${Math.random() * 400 - 200}px, ${Math.random() * 400 - 200}px, 0) scale(2.5) rotate(540deg); opacity: 0.5; }
+                80% { transform: translate3d(${Math.random() * 500 - 250}px, ${Math.random() * 500 - 250}px, 0) scale(3) rotate(720deg); opacity: 0.3; }
+                100% { transform: translate3d(${Math.random() * 600 - 300}px, ${Math.random() * 600 - 300}px, 0) scale(4) rotate(900deg); opacity: 0; }
+            }
+
+            @keyframes ultimateConfetti {
+                0% { transform: translate3d(0, -100vh, 0) rotate(0deg) scale(1); opacity: 1; }
+                100% { transform: translate3d(${Math.random() * 400 - 200}px, 100vh, 0) rotate(${720 + Math.random() * 360}deg) scale(0.5); opacity: 0; }
+            }
+
+            @keyframes sparkle {
+                0% { transform: translate3d(0, 0, 0) scale(0) rotate(0deg); opacity: 1; }
+                50% { transform: translate3d(${Math.random() * 100 - 50}px, ${Math.random() * 100 - 50}px, 0) scale(1.5) rotate(180deg); opacity: 0.8; }
+                100% { transform: translate3d(${Math.random() * 200 - 100}px, ${Math.random() * 200 - 100}px, 0) scale(0) rotate(360deg); opacity: 0; }
+            }
+        `;
+
+        // 動的スタイル追加
+        const styleSheet = document.createElement('style');
+        styleSheet.textContent = additionalStyles;
+        document.head.appendChild(styleSheet);
+
+        // アプリケーション初期化状態
+        let appInitialized = false;
+        
+        // 地理データ変換用アイコン
+        const CATEGORY_ICONS = {
+            worldLocations: "🌍",
+            japanLocations: "🗾", 
+            naturalAndLifestyle: "🌿",
+            agricultureAndFishery: "🌾",
+            miningAndIndustry: "🏭",
+            otherGeographyTerms: "📍",
+            climateAndLifestyle: "📊",
+            agricultureStatistics: "📈",
+            industryStatistics: "📊",
+            populationTransportTrade: "🚛",
+            mapsAndTopography: "🗺️"
+        };
+
+        const SUBCATEGORY_ICONS = {
+            continents: "🗺️", oceans: "🌊", mountainRanges: "⛰️", majorMountains: "🏔️", riversAndSeas: "🏞️",
+            rivers: "🏞️", plains: "🌾", mountains: "🏔️", specialLocations: "🌸", prefectureCapitals: "🏛️",
+            areaAndPopulation: "📊", otherCities: "🏙️", specialTopography: "🗻", climateAndWeather: "🌤️",
+            worldReligions: "🙏", populationAndEthnic: "👥", naturalDisasters: "⚡", europeanAgriculture: "🇪🇺",
+            worldAgriculture: "🌍", majorCrops: "🌽", japanAgriculture: "🇯🇵", agriculturalTerms: "📚",
+            aquaculture: "🐟", americanIndustry: "🇺🇸", asianEuIndustry: "🌏", japanIndustry: "🏭",
+            industryTerms: "⚙️", miningAndEnergy: "⚡", earthPosition: "🧭", japanPosition: "🗾",
+            timeZone: "🕐", transportation: "🚄", environmentalProblems: "♻️", worldClimateZones: "🌡️",
+            japanClimate: "🌸", worldCulture: "🌍", japanFishery: "🐟", industrialRegions: "🏭",
+            worldEnergy: "⚡", worldResources: "💎", worldProduction: "🏭", populationPyramid: "📊",
+            transportationChanges: "🚛", tradeChanges: "💱", importSources: "📦", tradePartners: "🤝",
+            malaysiaExports: "🇲🇾", americanAgriculture: "🇺🇸", chineseAgriculture: "🇨🇳",
+            japanIndustryDistribution: "🏭", topographicReading: "🗺️", specialLandforms: "🗻"
+        };
+
+        // ゲーム状態管理
+        let gameState = {
+            currentScreen: 'menuScreen',
+            currentTheme: '',
+            currentSubcategory: '',
+            currentData: [],
+            selectedCard: null,
+            score: 0,
+            totalPairs: 0,
+            matchedPairs: 0,
+            screenHistory: ['menuScreen'],
+            comboCount: 0,
+            perfectRun: true,
+            maxCombo: 0,
+            startTime: 0
+        };
+
+        // ローディング画面制御
+        function hideLoadingScreen() {
+            const loadingScreen = document.getElementById('loadingScreen');
+            if (loadingScreen) {
+                loadingScreen.style.opacity = '0';
+                setTimeout(() => {
+                    loadingScreen.style.display = 'none';
+                }, 300);
+            }
+        }
+
+        function showLoadingScreen() {
+            const loadingScreen = document.getElementById('loadingScreen');
+            if (loadingScreen) {
+                loadingScreen.style.display = 'flex';
+                loadingScreen.style.opacity = '1';
+            }
+        }
+
+        // ユーティリティ関数
+        function shuffleArray(array) {
+            const shuffled = [...array];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        }
+
+        // メニュー初期化
+        function initializeMenu() {
+            try {
+                if (!geographyData) {
+                    console.error('geographyData is not available');
+                    return false;
+                }
+
+                const menuContainer = document.getElementById('menuContainer');
+                if (!menuContainer) {
+                    console.error('Menu container not found');
+                    return false;
+                }
+
+                menuContainer.innerHTML = '';
+
+                const convertedData = {};
+                
+                Object.keys(geographyData).forEach(categoryKey => {
+                    const category = geographyData[categoryKey];
+                    if (categoryKey === 'metadata') return;
+                    
+                    convertedData[categoryKey] = {
+                        title: getCategoryTitle(categoryKey),
+                        description: getCategoryDescription(categoryKey),
+                        emoji: CATEGORY_ICONS[categoryKey] || "📍",
+                        subcategories: {}
+                    };
+                    
+                    Object.keys(category).forEach(subKey => {
+                        const subcategory = category[subKey];
+                        
+                        if (subcategory && subcategory.title && subcategory.data && Array.isArray(subcategory.data)) {
+                            const validTerms = subcategory.data
+                                .filter(item => {
+                                    if (!item) return false;
+                                    if (!item.name || !item.description) return false;
+                                    if (item.name === 'undefined' || item.description === 'undefined') return false;
+                                    if (typeof item.name !== 'string' || typeof item.description !== 'string') return false;
+                                    return item.name.trim() !== '' && item.description.trim() !== '';
+                                })
+                                .map(item => ({
+                                    term: item.name.toString().trim(),
+                                    description: item.description.toString().trim()
+                                }));
+                                
+                            if (validTerms.length > 0) {
+                                convertedData[categoryKey].subcategories[subKey] = {
+                                    title: subcategory.title,
+                                    terms: validTerms
+                                };
+                            }
+                        }
+                    });
+                });
+
+                Object.keys(convertedData).forEach(categoryKey => {
+                    const category = convertedData[categoryKey];
+                    
+                    if (Object.keys(category.subcategories).length === 0) {
+                        return;
+                    }
+                    
+                    const categorySection = document.createElement('div');
+                    categorySection.className = 'category-section';
+                    categorySection.style.animation = 'fadeIn 0.5s ease-out';
+                    
+                    const categoryHeader = document.createElement('div');
+                    categoryHeader.className = 'category-header';
+                    categoryHeader.textContent = `${category.emoji} ${category.title}`;
+                    categoryHeader.onclick = () => {
+                        playUltimateClickSound();
+                        selectCategory(categoryKey, convertedData);
+                    };
+                    categorySection.appendChild(categoryHeader);
+                    
+                    const themeGrid = document.createElement('div');
+                    themeGrid.className = 'theme-grid';
+                    
+                    Object.keys(category.subcategories).forEach(subKey => {
+                        const subcategory = category.subcategories[subKey];
+                        const subcategoryCard = document.createElement('div');
+                        subcategoryCard.className = 'theme-card';
+                        subcategoryCard.onclick = () => {
+                            playUltimateClickSound();
+                            startMatchingGame(categoryKey, subKey, convertedData);
+                        };
+                        
+                        const icon = SUBCATEGORY_ICONS[subKey] || category.emoji;
+                        subcategoryCard.innerHTML = `
+                            <div class="theme-emoji">${icon}</div>
+                            <div class="theme-title">${subcategory.title}</div>
+                        `;
+                        
+                        themeGrid.appendChild(subcategoryCard);
+                    });
+                    
+                    categorySection.appendChild(themeGrid);
+                    menuContainer.appendChild(categorySection);
+                });
+                
+                return true;
+                
+            } catch (error) {
+                console.error('Failed to initialize menu:', error);
+                return false;
+            }
+        }
+
+        function getCategoryTitle(categoryKey) {
+            const titles = {
+                worldLocations: "世界の地名", japanLocations: "日本の地名", naturalAndLifestyle: "自然・暮らし",
+                agricultureAndFishery: "農業・漁業", miningAndIndustry: "鉱工業", otherGeographyTerms: "その他の地理用語",
+                climateAndLifestyle: "気候・暮らし", agricultureStatistics: "農業・漁業統計", industryStatistics: "工業統計",
+                populationTransportTrade: "人口・交通・貿易統計", mapsAndTopography: "分布図・地形図"
+            };
+            return titles[categoryKey] || categoryKey;
+        }
+
+        function getCategoryDescription(categoryKey) {
+            const descriptions = {
+                worldLocations: "世界の大陸・海洋・山脈・河川", japanLocations: "日本の河川・平野・山地・都市",
+                naturalAndLifestyle: "地形・気候・宗教・災害", agricultureAndFishery: "世界と日本の農業・漁業",
+                miningAndIndustry: "世界と日本の工業・鉱業", otherGeographyTerms: "位置・時差・交通・環境",
+                climateAndLifestyle: "世界の気候と各種統計データ", agricultureStatistics: "農業・漁業の統計データ",
+                industryStatistics: "工業の統計データ", populationTransportTrade: "人口・交通・貿易の統計データ",
+                mapsAndTopography: "分布図と地形図"
+            };
+            return descriptions[categoryKey] || "";
+        }
+
+        function pushScreen(screenId) {
+            if (gameState.screenHistory[gameState.screenHistory.length - 1] !== screenId) {
+                gameState.screenHistory.push(screenId);
+            }
+            gameState.currentScreen = screenId;
+            updateBackButton();
+        }
+
+        function popScreen() {
+            if (gameState.screenHistory.length > 1) {
+                gameState.screenHistory.pop();
+                const previousScreen = gameState.screenHistory[gameState.screenHistory.length - 1];
+                gameState.currentScreen = previousScreen;
+                return previousScreen;
+            }
+            return 'menuScreen';
+        }
+
+        function updateBackButton() {
+            const backBtn = document.getElementById('floatingBack');
+            if (backBtn) {
+                if (gameState.screenHistory.length > 1) {
+                    backBtn.style.display = 'flex';
+                } else {
+                    backBtn.style.display = 'none';
+                }
+            }
+        }
+
+        function goBack() {
+            const previousScreen = popScreen();
+            
+            if (gameState.currentScreen === 'gameScreen') {
+                gameState.selectedCard = null;
+                comboCount = 0;
+            }
+            
+            showScreen(previousScreen);
+        }
+
+        function selectCategory(categoryKey, convertedData) {
+            initAudio();
+            showSubcategories(categoryKey, convertedData);
+        }
+
+        function showSubcategories(categoryKey, convertedData) {
+            const category = convertedData[categoryKey];
+            
+            document.getElementById('subcategoryTitle').textContent = 
+                `${category.emoji}${category.title}`;
+            
+            const subcategoryGrid = document.getElementById('subcategoryGrid');
+            subcategoryGrid.innerHTML = '';
+
+            const subcategories = shuffleArray(Object.keys(category.subcategories));
+
+            subcategories.forEach(subKey => {
+                const subcategory = category.subcategories[subKey];
+                const subcategoryCard = document.createElement('div');
+                subcategoryCard.className = 'theme-card';
+                
+                subcategoryCard.onclick = () => {
+                    playUltimateClickSound();
+                    startMatchingGame(categoryKey, subKey, convertedData);
+                };
+                
+                const icon = SUBCATEGORY_ICONS[subKey] || category.emoji;
+                subcategoryCard.innerHTML = `
+                    <div class="theme-emoji">${icon}</div>
+                    <div class="theme-title">${subcategory.title}</div>
+                `;
+                
+                subcategoryGrid.appendChild(subcategoryCard);
+            });
+
+            showScreen('subcategoryScreen');
+        }
+
+        function showScreen(screenId) {
+            const screens = ['menuScreen', 'subcategoryScreen', 'gameScreen', 'resultScreen'];
+            screens.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.style.display = id === screenId ? 'block' : 'none';
+                }
+            });
+            
+            if (screenId === 'menuScreen') {
+                gameState.screenHistory = ['menuScreen'];
+                gameState.currentScreen = 'menuScreen';
+            } else if (gameState.screenHistory[gameState.screenHistory.length - 1] !== screenId) {
+                gameState.screenHistory.push(screenId);
+                gameState.currentScreen = screenId;
+            }
+            
+            updateBackButton();
+        }
+
+        function showMenu() {
+            showScreen('menuScreen');
+        }
+
+        function startMatchingGame(categoryKey, subcategoryKey, convertedData) {
+            comboCount = 0;
+            gameState.maxCombo = 0;
+            gameState.perfectRun = true;
+            gameState.startTime = Date.now();
+            gameState.currentTheme = categoryKey;
+            gameState.currentSubcategory = subcategoryKey;
+            
+            const category = convertedData[categoryKey];
+            const subcategory = category.subcategories[subcategoryKey];
+            
+            if (!subcategory || !subcategory.terms || subcategory.terms.length === 0) {
+                alert('このカテゴリにはデータがありません。');
+                return;
+            }
+            
+            gameState.currentData = [...subcategory.terms];
+            
+            const icon = SUBCATEGORY_ICONS[subcategoryKey] || category.emoji;
+            initializeMatchingGame(`${icon}${subcategory.title}`);
+        }
+
+        function initializeMatchingGame(title) {
+            gameState.currentData = shuffleArray(gameState.currentData);
+            
+            gameState.score = 0;
+            gameState.matchedPairs = 0;
+            gameState.totalPairs = gameState.currentData.length;
+            gameState.selectedCard = null;
+            
+            document.getElementById('currentTheme').textContent = title;
+            document.getElementById('score').textContent = gameState.score;
+            document.getElementById('total').textContent = gameState.totalPairs;
+            
+            renderMatchingGame();
+            showScreen('gameScreen');
+        }
+
+        function renderMatchingGame() {
+            const leftColumn = document.getElementById('leftColumn');
+            const rightColumn = document.getElementById('rightColumn');
+            
+            leftColumn.innerHTML = '';
+            rightColumn.innerHTML = '';
+            
+            if (!gameState.currentData || gameState.currentData.length === 0) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'error-message';
+                errorDiv.textContent = 'データが見つかりません';
+                leftColumn.appendChild(errorDiv);
+                return;
+            }
+            
+            const validData = gameState.currentData.filter(item => 
+                item && item.term && item.description && 
+                item.term !== 'undefined' && item.description !== 'undefined' &&
+                typeof item.term === 'string' && typeof item.description === 'string' &&
+                item.term.trim() !== '' && item.description.trim() !== ''
+            );
+            
+            if (validData.length === 0) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'error-message';
+                errorDiv.textContent = '有効なデータが見つかりません';
+                leftColumn.appendChild(errorDiv);
+                return;
+            }
+            
+            const terms = shuffleArray(validData.map(item => item.term));
+            const descriptions = shuffleArray(validData.map(item => item.description));
+            
+            terms.forEach((term, index) => {
+                const card = createCard(term, 'term', index);
+                leftColumn.appendChild(card);
+            });
+            
+            descriptions.forEach((desc, index) => {
+                const card = createCard(desc, 'description', index);
+                rightColumn.appendChild(card);
+            });
+        }
+
+        function createCard(text, type, index) {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.dataset.type = type;
+            card.dataset.text = text;
+            card.innerHTML = `<div class="card-text">${text}</div>`;
+            card.onclick = () => selectCard(card);
+            
+            card.style.animationDelay = (Math.random() * 0.2) + 's';
+            card.style.animation = 'bounce 0.4s ease-out forwards';
+            
+            return card;
+        }
+
+        function selectCard(card) {
+            playUltimateClickSound();
+            
+            if (card.classList.contains('matched')) return;
+            
+            if (gameState.selectedCard) {
+                if (gameState.selectedCard === card) {
+                    gameState.selectedCard.classList.remove('selected');
+                    gameState.selectedCard = null;
+                    return;
+                }
+                
+                checkMatch(gameState.selectedCard, card);
+            } else {
+                card.classList.add('selected');
+                gameState.selectedCard = card;
+            }
+        }
+
+        function checkMatch(card1, card2) {
+            const text1 = card1.dataset.text;
+            const text2 = card2.dataset.text;
+            
+            let isMatch = false;
+            for (let item of gameState.currentData) {
+                if ((item.term === text1 && item.description === text2) || 
+                    (item.term === text2 && item.description === text1)) {
+                    isMatch = true;
+                    break;
+                }
+            }
+            
+            if (isMatch) {
+                card1.classList.remove('selected');
+                card1.classList.add('matched');
+                card2.classList.add('matched');
+                
+                gameState.score++;
+                gameState.matchedPairs++;
+                gameState.maxCombo = Math.max(gameState.maxCombo, comboCount);
+                
+                playUltimateSuccessSound();
+                
+                const rect1 = card1.getBoundingClientRect();
+                const rect2 = card2.getBoundingClientRect();
+                
+                createUltimateFirework(rect1.left + rect1.width / 2, rect1.top + rect1.height / 2);
+                createUltimateFirework(rect2.left + rect2.width / 2, rect2.top + rect2.height / 2);
+                
+                document.getElementById('score').textContent = gameState.score;
+                const progress = (gameState.matchedPairs / gameState.totalPairs) * 100;
+                document.getElementById('progressFill').style.width = progress + '%';
+                
+                if (gameState.matchedPairs === gameState.totalPairs) {
+                    setTimeout(showResult, 1500);
+                }
+            } else {
+                comboCount = 0;
+                gameState.perfectRun = false;
+                
+                card1.classList.add('wrong');
+                card2.classList.add('wrong');
+                
+                playUltimateWrongSound();
+                
+                setTimeout(() => {
+                    card1.classList.remove('selected', 'wrong');
+                    card2.classList.remove('wrong');
+                }, 800);
+            }
+            
+            gameState.selectedCard = null;
+        }
+
+        function showResult() {
+            const endTime = Date.now();
+            const playTime = Math.round((endTime - gameState.startTime) / 1000);
+            const percentage = Math.round((gameState.score / gameState.totalPairs) * 100);
+            
+            if (percentage === 100 && gameState.perfectRun) {
+                playUltimateVictorySound();
+                createUltimateConfetti();
+                
+                document.getElementById('finalScore').textContent = 
+                    `🏆 パーフェクト！ 🏆\n${gameState.score}/${gameState.totalPairs}問全問正解！\n⏱️ タイム: ${playTime}秒`;
+            } else if (percentage >= 90) {
+                playUltimateVictorySound();
+                createUltimateConfetti();
+                
+                document.getElementById('finalScore').textContent = 
+                    `🌟 すばらしい！ 🌟\n${gameState.score}/${gameState.totalPairs}問正解！ (${percentage}%)\n⏱️ タイム: ${playTime}秒`;
+            } else if (percentage >= 70) {
+                playUltimateSuccessSound();
+                
+                document.getElementById('finalScore').textContent = 
+                    `👍 よくできました！ 👍\n${gameState.score}/${gameState.totalPairs}問正解！ (${percentage}%)\n⏱️ タイム: ${playTime}秒`;
+            } else {
+                playUltimateClickSound();
+                
+                document.getElementById('finalScore').textContent = 
+                    `📚 もう一度チャレンジ！ 📚\n${gameState.score}/${gameState.totalPairs}問正解！ (${percentage}%)\n⏱️ タイム: ${playTime}秒`;
+            }
+            
+            showScreen('resultScreen');
+        }
+
+        function restartGame() {
+            if (gameState.currentTheme && gameState.currentSubcategory) {
+                const convertedData = {};
+                Object.keys(geographyData).forEach(categoryKey => {
+                    if (categoryKey === 'metadata') return;
+                    const category = geographyData[categoryKey];
+                    convertedData[categoryKey] = {
+                        title: getCategoryTitle(categoryKey),
+                        subcategories: {}
+                    };
+                    Object.keys(category).forEach(subKey => {
+                        const subcategory = category[subKey];
+                        if (subcategory && subcategory.title && subcategory.data) {
+                            const validTerms = subcategory.data
+                                .filter(item => item && item.name && item.description)
+                                .map(item => ({
+                                    term: item.name,
+                                    description: item.description
+                                }));
+                            if (validTerms.length > 0) {
+                                convertedData[categoryKey].subcategories[subKey] = {
+                                    title: subcategory.title,
+                                    terms: validTerms
+                                };
+                            }
+                        }
+                    });
+                });
+                startMatchingGame(gameState.currentTheme, gameState.currentSubcategory, convertedData);
+            } else {
+                showMenu();
+            }
+        }
+
+        function initializeApp() {
+            if (typeof geographyData === 'undefined') {
+                showErrorMessage('データファイルが見つかりません');
+                return false;
+            }
+
+            if (initializeMenu()) {
+                appInitialized = true;
+                hideLoadingScreen();
+                showMenu();
+                return true;
+            } else {
+                showErrorMessage('初期化に失敗しました');
+                return false;
+            }
+        }
+
+        function showErrorMessage(message) {
+            hideLoadingScreen();
+            document.querySelector('.container').innerHTML = `
+                <div style="text-align: center; padding: 40px; color: var(--primary);">
+                    <h3 style="font-family: var(--font-serif); margin-bottom: 8px;">${message}</h3>
+                    <p style="color: var(--text-muted);">データファイルを確認してください</p>
+                    <button onclick="location.reload()" style="margin-top: 20px; padding: 11px 24px; background: var(--primary); color: #f4f8f5; border: none; border-radius: 25px; font-weight: bold; cursor: pointer; font-family: inherit;">再読み込み</button>
+                </div>
+            `;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            showLoadingScreen();
+            
+            function attemptInitialization(attempts = 0) {
+                const maxAttempts = 30;
+                
+                if (typeof geographyData !== 'undefined') {
+                    setTimeout(() => {
+                        initializeApp();
+                    }, 300);
+                } else if (attempts < maxAttempts) {
+                    setTimeout(() => {
+                        attemptInitialization(attempts + 1);
+                    }, 100);
+                } else {
+                    showErrorMessage('データの読み込みがタイムアウトしました');
+                }
+            }
+            
+            attemptInitialization();
+            
+            document.addEventListener('click', initAudio, { once: true });
+            document.addEventListener('touchstart', initAudio, { once: true });
+        });
+    </script>
+</body>
+</html>
